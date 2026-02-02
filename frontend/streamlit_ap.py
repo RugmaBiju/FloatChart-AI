@@ -30,3 +30,4 @@ st.set_page_config(page_title="FloatChat")
 
 st.title("🌊 FloatChat")
 st.write("Frontend is running successfully!")
+print("hello")
