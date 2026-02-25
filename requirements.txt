@@ -1,14 +1,6 @@
 fastapi
 uvicorn
 pandas
-numpy
-matplotlib
-plotly
-scikit-learn
-sentence-transformers
-faiss-cpu
-transformers
-torch
 requests
 python-dotenv
 pydantic
