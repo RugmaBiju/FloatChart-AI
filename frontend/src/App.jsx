@@ -1,35 +1,45 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { fetchChatResponse, fetchOceanData } from '../../src/api';
+import ScientificChart from '../../src/components/ScientificChart';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [messages, setMessages] = useState([]);
+  const [realData, setRealData] = useState([]);
+  const [input, setInput] = useState("");
+
+  // Connect to Backend Data on startup
+  useEffect(() => {
+    fetchOceanData().then(data => setRealData(data));
+  }, []);
+
+  const handleSend = async () => {
+    const userMsg = { role: 'user', text: input };
+    setMessages([...messages, userMsg]);
+    
+    // Call our Backend API
+    const data = await fetchChatResponse(input);
+    setMessages(prev => [...prev, { role: 'bot', text: data.answer }]);
+    setInput("");
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div style={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar with Chat */}
+      <div style={{ width: '350px', padding: '20px', borderRight: '1px solid #ccc' }}>
+        <h3>🌊 FloatChat</h3>
+        <div style={{ height: '400px', overflowY: 'auto', border: '1px solid #eee' }}>
+          {messages.map((m, i) => <p key={i}><strong>{m.role}:</strong> {m.text}</p>)}
+        </div>
+        <input value={input} onChange={(e) => setInput(e.target.value)} />
+        <button onClick={handleSend}>Ask AI</button>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
 
-export default App
+      {/* Main Panel with Chart */}
+      <div style={{ flex: 1, padding: '20px' }}>
+        <h2>Scientific Data View</h2>
+        <ScientificChart data={realData} />
+      </div>
+    </div>
+  );
+}
+export default App;
