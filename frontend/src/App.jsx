@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { fetchChatResponse, fetchOceanData } from '../../src/api';
-import ScientificChart from '../../src/components/ScientificChart';
+import { fetchChatResponse, fetchOceanData } from "./api"
+import ScientificChart from "./components/ScientificChart"
 
 function App() {
   const [messages, setMessages] = useState([]);
