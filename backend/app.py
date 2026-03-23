@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware 
 from pydantic import BaseModel
 import pandas as pd
 from backend.llm_cloud import generate_answer
