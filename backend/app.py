@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 from backend.llm_cloud import generate_answer
@@ -64,6 +66,17 @@ async def chat_endpoint(item: ChatQuery):
         return {"answer": answer}
     except Exception as e:
         return {"answer": f"Backend Error: {str(e)}"}
+
+@app.post("/anthropic-proxy")
+async def anthropic_proxy(request: Request):
+    body = await request.json()
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": os.getenv("ANTHROPIC_API_KEY"),
+        "anthropic-version": "2023-06-01",
+    }
+    resp = requests.post("https://api.anthropic.com/v1/messages", json=body, headers=headers)
+    return resp.json()
 
 if __name__ == "__main__":
     import uvicorn
