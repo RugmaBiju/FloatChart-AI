@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_PATH = r"C:\\Users\\Dell\\Desktop\\floatchat1\\backend\\data\\synthetic_indian.csv"
+DATA_PATH = r"C:\\Users\\rugma\\floatchat1\\backend\\data\\synthetic_indian.csv"
 
 class ChatQuery(BaseModel):
     query: str
