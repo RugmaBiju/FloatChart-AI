@@ -68,7 +68,7 @@ export async function askMarineAI(userMessage, history = []) {
       model: MODEL,
       max_tokens: 1000,
       system: MARINE_SYSTEM_PROMPT,
-      messages,
+       query: message,
     }),
   });
 
@@ -123,7 +123,7 @@ export async function smartRoute(userMessage, history = [], ragEndpoint = "http:
     const res = await fetch(ragEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage }),
+      body: JSON.stringify({ query: userMessage }),
     });
     if (!res.ok) throw new Error(`RAG backend error ${res.status}`);
     const data = await res.json();
