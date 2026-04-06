@@ -1,8 +1,7 @@
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+import requests
+from fastapi.middleware.cors import CORSMiddleware 
 from pydantic import BaseModel
 import pandas as pd
 from backend.llm_cloud import generate_answer
@@ -47,23 +46,39 @@ async def get_data_summary():
 async def chat_endpoint(item: ChatQuery):
     try:
         query = item.query.lower()
+
         df = pd.read_csv(DATA_PATH)
-        df = df.rename(columns={"depth_m": "depth", "temperature_c": "temp", "salinity_psu": "salinity"})
+        df = df.rename(columns={
+            "depth_m": "depth",
+            "temperature_c": "temp",
+            "salinity_psu": "salinity"
+        })
 
+        # 🔥 Improved keyword detection
         computed_info = ""
-        if "average temperature" in query:
-            computed_info = f"The computed average temperature is {df['temp'].mean():.2f}°C."
-        elif "average salinity" in query:
-            computed_info = f"The computed average salinity is {df['salinity'].mean():.2f} PSU."
-        elif "average depth" in query:
-            computed_info = f"The computed average depth is {df['depth'].mean():.2f} meters."
 
-        # RAG Logic
+        if "temperature" in query:
+            computed_info = f"Average temperature is {df['temp'].mean():.2f}°C."
+        elif "salinity" in query:
+            computed_info = f"Average salinity is {df['salinity'].mean():.2f} PSU."
+        elif "depth" in query:
+            computed_info = f"Average depth is {df['depth'].mean():.2f} meters."
+
+        # 🔥 RAG fallback (important)
         retrieved = retrieve_context(query)
-        final_context = f"Insights: {computed_info}\n\nSample: {retrieved}"
+        if not retrieved:
+            retrieved = df.head(5).to_string()
+
+        # 🔍 Debug (optional)
+        print("QUERY:", query)
+        print("COMPUTED:", computed_info)
+        print("RETRIEVED:", retrieved)
+
+        final_context = f"Insights: {computed_info}\n\nSample Data:\n{retrieved}"
         answer = generate_answer(final_context, query)
 
         return {"answer": answer}
+
     except Exception as e:
         return {"answer": f"Backend Error: {str(e)}"}
 
