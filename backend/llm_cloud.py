@@ -22,9 +22,30 @@ HEADERS = {
 def generate_answer(context, query):
 
     messages = [
-        {"role": "system", "content": "You are a helpful data analysis assistant."},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
-    ]
+    {
+        "role": "system",
+        "content": (
+            "You are an ocean data analyst AI. "
+            "The dataset provided contains ocean water measurements from Argo floats "
+            "(temperature, salinity, depth). "
+            "Always use the given context to answer. "
+            "Do NOT say data is missing. "
+            "Give clear, confident, data-based answers."
+        )
+    },
+    {
+        "role": "user",
+        "content": f"""
+Context:
+{context}
+
+Question:
+{query}
+
+Answer using the data above. Be direct and specific.
+"""
+    }
+]
 
     payload = {
         "model": "llama-3.1-8b-instant",
