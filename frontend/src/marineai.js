@@ -1,11 +1,4 @@
-// ─── marineAI.js ─────────────────────────────────────────────────────────────
-// All calls to the Anthropic API for marine life / ocean biology knowledge.
-// Your Python RAG backend handles Argo float data questions.
-// This file handles everything about ocean animals, ecosystems, marine biology.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ANTHROPIC_API = "http://localhost:8000/anthropic-proxy";
-const MODEL = "claude-sonnet-4-20250514";
+const BACKEND = "http://localhost:8000";
 
 const MARINE_SYSTEM_PROMPT = `You are MarineBot, an expert marine biologist and oceanographer specialising in the Indian Ocean. You have deep knowledge of:
 - Marine animals: fish, mammals, reptiles, invertebrates, and microorganisms of the Indian Ocean
@@ -17,117 +10,102 @@ const MARINE_SYSTEM_PROMPT = `You are MarineBot, an expert marine biologist and 
 Personality: You are enthusiastic, educational, and engaging. You use vivid descriptions and analogies. You always connect animals to the Indian Ocean context specifically.
 
 Response style:
-- Keep responses concise but rich (3–5 sentences for quick facts, up to 8–10 for deep dives)
+- Keep responses concise but rich (3-5 sentences for quick facts, up to 8-10 for deep dives)
 - Use emojis sparingly but meaningfully
 - Always mention Indian Ocean relevance when relevant
 - For creature profiles, structure: quick intro → habitat in Indian Ocean → cool adaptation or behaviour → conservation note
-- Do NOT use markdown headers or bullet points — write in flowing prose
+- Do NOT use markdown headers or bullet points - write in flowing prose
 - Never mention that you are Claude or made by Anthropic. You are MarineBot.`;
 
-// ── Keywords that indicate a marine-life question (vs an ocean-data question) ──
+// ── Keywords for MarineBot ───────────────────────────────────────────────────
 const MARINE_KEYWORDS = [
   "whale", "shark", "dolphin", "fish", "coral", "reef", "turtle", "ray", "manta",
   "dugong", "seal", "octopus", "squid", "jellyfish", "crab", "lobster", "shrimp",
   "seagrass", "mangrove", "plankton", "krill", "eel", "seahorse", "clam", "oyster",
   "starfish", "sea urchin", "anemone", "coelacanth", "tuna", "marlin", "swordfish",
-  "species", "animal", "creature", "marine life", "marine animal", "ocean life",
-  "bioluminescent", "migration", "breeding", "habitat", "ecosystem", "biodiversity",
-  "endangered", "predator", "prey", "food chain", "deep sea", "mesopelagic",
-  "epipelagic", "abyssal", "reef fish", "pelagic", "benthic", "phytoplankton",
-  "zooplankton", "spawn", "nest", "pod", "school of fish", "hunt", "feed",
+  "penguin", "albatross", "seabird", "sea snake", "sea cow", "manatee", "porpoise",
+  "barracuda", "grouper", "snapper", "parrotfish", "clownfish", "lionfish", "stingray",
+  "nautilus", "cuttlefish", "barnacle", "sea cucumber", "nudibranch", "sea slug",
+  "marine creature", "marine animal", "sea creature", "sea animal", "ocean creature",
+  "marine life", "ocean life", "sea life", "most common", "commonly found", "species of",
+  "tell me about", "how do", "how does", "behaviour", "behavior", "adaptation",
+  "habitat", "ecosystem", "biodiversity", "conservation", "endangered"
 ];
 
-/**
- * Returns true if the message is likely a marine-life/biology question.
- * Returns false if it's likely an ocean-data/float/measurement question
- * (those should go to your Python RAG backend instead).
- */
 export function isMarineQuestion(message) {
-  const lower = message.toLowerCase();
-  return MARINE_KEYWORDS.some((kw) => lower.includes(kw));
+  const lower = message.toLowerCase().trim();
+
+  // Force data questions to RAG
+  const dataKeywords = ["salinity", "temperature", "depth", "pressure", "average", "avg", "mean", "argo float", "wmo-", "profile", "cycle"];
+  if (dataKeywords.some(kw => lower.includes(kw))) return false;
+
+  return MARINE_KEYWORDS.some(kw => lower.includes(kw));
 }
 
-/**
- * Ask the marine AI a question. Returns the full text response.
- * @param {string} userMessage
- * @param {Array}  history  - [{role:"user"|"assistant", content:string}]
- */
 export async function askMarineAI(userMessage, history = []) {
-  const messages = [
-    ...history.map((m) => ({
-      role: m.role === "bot" ? "assistant" : m.role,
-      content: m.text || m.content,
-    })),
-    { role: "user", content: userMessage },
-  ];
+  try {
+    const messages = [
+      { role: "system", content: MARINE_SYSTEM_PROMPT },
+      ...history
+        .filter((m) => m.role !== "system")
+        .slice(-10)
+        .map((m) => ({
+          role: m.role === "bot" ? "assistant" : "user",
+          content: m.text || m.content || "",
+        })),
+      { role: "user", content: userMessage },
+    ];
 
-  const response = await fetch(ANTHROPIC_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1000,
-      system: MARINE_SYSTEM_PROMPT,
-       query: message,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${response.status}`);
-  }
-
-  const data = await response.json();
-  const text = data.content
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  return text;
-}
-
-/**
- * Generate a rich AI profile for a specific creature in the Indian Ocean context.
- * Used on the Marine Life page when a user clicks a creature card.
- * @param {string} creatureName
- * @param {string} scientificName
- */
-export async function generateCreatureProfile(creatureName, scientificName) {
-  const prompt = `Give me a rich, engaging profile of the ${creatureName} (${scientificName}) specifically in the context of the Indian Ocean. Cover: where exactly in the Indian Ocean they are found, one remarkable adaptation or behaviour, their ecological role, and their current conservation status. Keep it to 4–5 sentences, vivid and educational.`;
-
-  return askMarineAI(prompt);
-}
-
-/**
- * Generate a "Did You Know?" fun fact for a creature. Short, punchy, surprising.
- */
-export async function generateFunFact(creatureName) {
-  const prompt = `Give me one surprising, little-known fun fact about the ${creatureName} in the Indian Ocean. One sentence, punchy and memorable. Start with "Did you know…"`;
-  return askMarineAI(prompt);
-}
-
-/**
- * Given any user question, decide which backend to use and return the answer.
- * - Marine/biology questions → Anthropic API (this file)
- * - Ocean data/float/measurement questions → your Python RAG backend
- *
- * @param {string} userMessage
- * @param {Array}  history
- * @param {string} ragEndpoint  - e.g. "http://localhost:8000/chat"
- * @returns {{ text: string, source: "marine-ai" | "rag" }}
- */
-export async function smartRoute(userMessage, history = [], ragEndpoint = "http://localhost:8000/chat") {
-  if (isMarineQuestion(userMessage)) {
-    const text = await askMarineAI(userMessage, history);
-    return { text, source: "marine-ai" };
-  } else {
-    const res = await fetch(ragEndpoint, {
+    const response = await fetch(`${BACKEND}/marine-proxy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: userMessage }),
+      body: JSON.stringify({ messages, temperature: 0.75, max_tokens: 1000 }),
     });
-    if (!res.ok) throw new Error(`RAG backend error ${res.status}`);
-    const data = await res.json();
-    const text = data.response || data.answer || "I received your question!";
-    return { text, source: "rag" };
+
+    if (!response.ok) throw new Error(`Proxy error ${response.status}`);
+
+    const data = await response.json();
+    return data.content || data.choices?.[0]?.message?.content || 
+           "Sorry, I couldn't generate a response right now. 🐋";
+  } catch (error) {
+    console.error("askMarineAI Error:", error);
+    return "I'm having trouble connecting to MarineBot right now 🌊 Please try again.";
   }
+}
+
+export async function smartRoute(userMessage, history = [], ragEndpoint = `${BACKEND}/chat`) {
+  try {
+    if (isMarineQuestion(userMessage)) {
+      const text = await askMarineAI(userMessage, history);
+      return { text, source: "marine-ai" };
+    } else {
+      const res = await fetch(ragEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: userMessage }),
+      });
+
+      if (!res.ok) throw new Error(`RAG error ${res.status}`);
+      const data = await res.json();
+      const text = data.answer || data.response || "I received your question!";
+      return { text, source: "rag" };
+    }
+  } catch (error) {
+    console.error("smartRoute Error:", error);
+    return { 
+      text: "Sorry, there was an error processing your request. Please check if the backend is running.", 
+      source: "error" 
+    };
+  }
+}
+
+// Required exports (to fix your import error)
+export async function generateCreatureProfile(creatureName, scientificName = "") {
+  const prompt = `Give me a rich profile of the ${creatureName} ${scientificName ? `(${scientificName})` : ''} in the Indian Ocean.`;
+  return askMarineAI(prompt);
+}
+
+export async function generateFunFact(creatureName) {
+  const prompt = `Give one surprising fun fact about the ${creatureName} in the Indian Ocean. Start with "Did you know"`;
+  return askMarineAI(prompt);
 }
