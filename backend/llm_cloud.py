@@ -48,7 +48,7 @@ Answer using the data above. Be direct and specific.
 ]
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama-3.3-70b-versatile",
         "messages": messages,
         "temperature": 0.7
     }
