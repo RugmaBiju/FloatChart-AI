@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.llm_cloud import generate_answer
+from backend.llm_cloud import API_URL, HEADERS, generate_answer
 from backend.rag_pipeline import retrieve_context
 
 # =========================
@@ -110,56 +110,71 @@ async def get_data_summary():
 async def chat_endpoint(item: ChatQuery):
     try:
         query = item.query.lower()
-
         df = pd.read_csv(DATA_PATH)
 
-        # 🔥 STEP 1: TRY DATASET FIRST
+        # STEP 1: Try direct dataset handler
         dataset_answer = handle_dataset_query(query, df)
-
         if dataset_answer:
             return {"answer": dataset_answer}
 
-        # 🔥 STEP 2: RAG (fallback)
+        # STEP 2: RAG fallback
         retrieved = retrieve_context(query)
-        if not retrieved:
-            retrieved = df.head(5).to_string()
+        if not retrieved or retrieved == "Dataset not found.":
+            retrieved = df.head(10).to_string(index=False)
 
-        # 🔥 STEP 3: LLM
         final_context = f"""
-        You are a marine expert assistant.
+You are an ocean data analyst AI.
+The dataset contains Argo float measurements from the Indian Ocean (temperature, salinity, depth, etc.).
 
-        Use the context below:
-        {retrieved}
-        """
+Context:
+{retrieved}
 
-        answer = generate_answer(final_context, query)
+Question: {item.query}
+"""
+
+        # STEP 3: Call LLM
+        answer = generate_answer(final_context, item.query)
 
         return {"answer": answer}
 
     except Exception as e:
-        return {"answer": f"Backend Error: {str(e)}"}
+        print("=== CHAT ENDPOINT ERROR ===")
+        print("Query:", item.query)
+        print("Error:", str(e))
+        import traceback
+        print(traceback.format_exc())
+        return {"answer": f"Error processing your request: {str(e)}"}
 
 
 # =========================
-# ✅ ANTHROPIC PROXY
+# ✅ MARINE PROXY
 # =========================
-@app.post("/anthropic-proxy")
-async def anthropic_proxy(request: Request):
-    body = await request.json()
+@app.post("/marine-proxy")
+async def marine_proxy(request: Request):
+    try:
+        body = await request.json()
+        
+        # Updated model (llama-3.1-70b-versatile is deprecated)
+        payload = {
+            "model": "llama-3.3-70b-versatile",     # ← This is the current good model
+            "messages": body.get("messages"),
+            "temperature": body.get("temperature", 0.75),
+            "max_tokens": body.get("max_tokens", 1000),
+        }
 
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": os.getenv("ANTHROPIC_API_KEY"),
-        "anthropic-version": "2023-06-01",
-    }
+        response = requests.post(API_URL, headers=HEADERS, json=payload)
 
-    resp = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        json=body,
-        headers=headers
-    )
+        if response.status_code == 200:
+            result = response.json()
+            return {"content": result["choices"][0]["message"]["content"]}   # Return in simple format
 
-    return resp.json()
+        else:
+            print("Groq Marine Error:", response.status_code, response.text)
+            return {"error": f"Groq API error: {response.status_code} - {response.text}"}
+
+    except Exception as e:
+        print("Marine Proxy Error:", str(e))
+        return {"error": f"Internal server error: {str(e)}"}
 
 
 # =========================
