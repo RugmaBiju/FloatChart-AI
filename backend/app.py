@@ -109,22 +109,24 @@ async def get_data_summary():
 @app.post("/chat")
 async def chat_endpoint(item: ChatQuery):
     try:
+        print(f"Received RAG request: {item.query}")   # ← Add this for logging
+
         query = item.query.lower()
         df = pd.read_csv(DATA_PATH)
 
-        # STEP 1: Try direct dataset handler
+        # Direct dataset handler
         dataset_answer = handle_dataset_query(query, df)
         if dataset_answer:
             return {"answer": dataset_answer}
 
-        # STEP 2: RAG fallback
+        # RAG fallback
         retrieved = retrieve_context(query)
-        if not retrieved or retrieved == "Dataset not found.":
-            retrieved = df.head(10).to_string(index=False)
+        if not retrieved or "Dataset not found" in retrieved:
+            retrieved = df.head(15).to_string(index=False)
 
         final_context = f"""
-You are an ocean data analyst AI.
-The dataset contains Argo float measurements from the Indian Ocean (temperature, salinity, depth, etc.).
+You are an ocean data analyst.
+Use the context below to answer accurately.
 
 Context:
 {retrieved}
@@ -132,18 +134,19 @@ Context:
 Question: {item.query}
 """
 
-        # STEP 3: Call LLM
         answer = generate_answer(final_context, item.query)
-        
+
         return {"answer": answer}
 
     except Exception as e:
-        print("=== CHAT ENDPOINT ERROR ===")
+        print("=== RAG CHAT ERROR ===")
         print("Query:", item.query)
-        print("Error:", str(e))
+        print("Error Type:", type(e).__name__)
+        print("Error Message:", str(e))
         import traceback
         print(traceback.format_exc())
-        return {"answer": f"Error processing your request: {str(e)}"}
+        
+        return {"answer": f"Error: {str(e)}"}  
 
 
 # =========================
