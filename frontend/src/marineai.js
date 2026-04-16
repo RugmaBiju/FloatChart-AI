@@ -1,4 +1,4 @@
-const BACKEND = "http://localhost:8000";
+const BACKEND = "https://floatchart-ai.onrender.com";
 
 const MARINE_SYSTEM_PROMPT = `You are MarineBot, an expert marine biologist and oceanographer specialising in the Indian Ocean. You have deep knowledge of:
 - Marine animals: fish, mammals, reptiles, invertebrates, and microorganisms of the Indian Ocean
