@@ -1,37 +1,41 @@
 import os
+import pandas as pd
 import re
 import requests
-import pandas as pd
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# ====================== FORCE DEBUG AT STARTUP ======================
+print("=" * 60)
+print("BACKEND STARTING ON RENDER...")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
 
-print(f"[DEBUG] BASE_DIR = {BASE_DIR}")
-print(f"[DEBUG] DATA_PATH = {DATA_PATH}")
-print(f"[DEBUG] File exists: {os.path.exists(DATA_PATH)}")
-# ============================================================
+print(f"[DEBUG] __file__     = {__file__}")
+print(f"[DEBUG] BASE_DIR     = {BASE_DIR}")
+print(f"[DEBUG] DATA_PATH    = {DATA_PATH}")
+print(f"[DEBUG] File exists? = {os.path.exists(DATA_PATH)}")
+print(f"[DEBUG] Current working directory = {os.getcwd()}")
+print("=" * 60)
+# ===================================================================
 
 class ChatQuery(BaseModel):
     query: str
 
-
-from backend.llm_cloud import API_URL, HEADERS, generate_answer
-from backend.rag_pipeline import retrieve_context
-
-# =========================
-# ✅ FASTAPI SETUP
-# =========================
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Import after debug prints
+from backend.rag_pipeline import retrieve_context
+from backend.llm_cloud import API_URL, HEADERS, generate_answer
 
 # =========================
 # ✅ DATASET HANDLER
