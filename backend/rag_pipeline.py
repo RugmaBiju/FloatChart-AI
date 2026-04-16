@@ -1,8 +1,11 @@
 import pandas as pd
 import os
 
-DATA_PATH = "C:\\Users\\Dell\\Desktop\\floatchat1\\backend\\data\\synthetic_indian.csv"
+# Robust path for Render
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
 
+print(f"Using DATA_PATH: {DATA_PATH}")   # This will show in Render Logs
 def retrieve_context(query: str):
     """
     Retrieves relevant rows from dataset based on keywords.
