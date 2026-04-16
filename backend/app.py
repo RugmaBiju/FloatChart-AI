@@ -6,8 +6,32 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
+
+print(f"[DEBUG] BASE_DIR = {BASE_DIR}")
+print(f"[DEBUG] DATA_PATH = {DATA_PATH}")
+print(f"[DEBUG] File exists: {os.path.exists(DATA_PATH)}")
+# ============================================================
+
+class ChatQuery(BaseModel):
+    query: str
+
+
 from backend.llm_cloud import API_URL, HEADERS, generate_answer
 from backend.rag_pipeline import retrieve_context
+
+# =========================
+# ✅ FASTAPI SETUP
+# =========================
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # =========================
 # ✅ DATASET HANDLER
@@ -61,32 +85,6 @@ def handle_dataset_query(query, df):
             return f"{col} values include: {', '.join(map(str, values))}"
 
     return None
-
-
-# =========================
-# ✅ FASTAPI SETUP
-# =========================
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-import os
-
-# Robust path that works both locally and on Render
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
-
-print(f"[DEBUG] Using DATA_PATH: {DATA_PATH}")
-print(f"[DEBUG] File exists: {os.path.exists(DATA_PATH)}")
-
-class ChatQuery(BaseModel):
-    query: str
-
 
 # =========================
 # ✅ ROOT
