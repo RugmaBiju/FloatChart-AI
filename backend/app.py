@@ -75,7 +75,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_PATH = r"C:\\Users\\rugma\\OneDrive\\Desktop\\FloatChart-AI\\backend\\data\\synthetic_indian.csv"
+DATA_PATH = "backend/data/synthetic_indian.csv"
 
 class ChatQuery(BaseModel):
     query: str
@@ -112,16 +112,11 @@ async def chat_endpoint(item: ChatQuery):
         query = item.query.lower()
         df = pd.read_csv(DATA_PATH)
 
-<<<<<<< Updated upstream
         # STEP 1: Try direct dataset handler
-=======
-        # ✅ STEP 1: DATASET
->>>>>>> Stashed changes
         dataset_answer = handle_dataset_query(query, df)
         if dataset_answer:
             return {"answer": dataset_answer}
 
-<<<<<<< Updated upstream
         # STEP 2: RAG fallback
         retrieved = retrieve_context(query)
         if not retrieved or retrieved == "Dataset not found.":
@@ -139,56 +134,17 @@ Question: {item.query}
 
         # STEP 3: Call LLM
         answer = generate_answer(final_context, item.query)
-=======
-        # ✅ STEP 2: RAG (SAFE)
-        try:
-            retrieved = retrieve_context(query)
-        except Exception as e:
-            print("RAG ERROR:", e)
-            retrieved = ""
-
-        if not retrieved:
-            retrieved = "General marine knowledge about ocean and sea life."
-
-        # ✅ STEP 3: LLM (SAFE)
-        try:
-            final_context = f"""
-            You are a marine expert assistant.
-
-            Context:
-            {retrieved}
-            """
-
-            answer = generate_answer(final_context, query)
->>>>>>> Stashed changes
-
-            # If LLM returns nothing
-            if not answer or len(answer.strip()) == 0:
-                return {
-                    "answer": "Marine life includes fish, whales, dolphins, corals, plankton, and many deep-sea organisms."
-                }
-
-            return {"answer": answer}
-
-        except Exception as e:
-            print("LLM ERROR:", e)
-
-            return {
-                "answer": "Marine life includes a wide variety of organisms such as fish, corals, whales, dolphins, and microscopic plankton."
-            }
+        
+        return {"answer": answer}
 
     except Exception as e:
-<<<<<<< Updated upstream
         print("=== CHAT ENDPOINT ERROR ===")
         print("Query:", item.query)
         print("Error:", str(e))
         import traceback
         print(traceback.format_exc())
         return {"answer": f"Error processing your request: {str(e)}"}
-=======
-        print("FATAL ERROR:", e)
-        return {"answer": f"Backend Error: {str(e)}"}
->>>>>>> Stashed changes
+
 
 # =========================
 # ✅ MARINE PROXY
