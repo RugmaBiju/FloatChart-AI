@@ -75,7 +75,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_PATH = "backend/data/synthetic_indian.csv"
+import os
+
+# Robust path that works both locally and on Render
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
+
+print(f"[DEBUG] Using DATA_PATH: {DATA_PATH}")
+print(f"[DEBUG] File exists: {os.path.exists(DATA_PATH)}")
 
 class ChatQuery(BaseModel):
     query: str
@@ -109,25 +116,26 @@ async def get_data_summary():
 @app.post("/chat")
 async def chat_endpoint(item: ChatQuery):
     try:
-        print(f"Received RAG request: {item.query}")   # ← Add this for logging
+        print(f"[RAG] Received request: {item.query}")
+
+        if not os.path.exists(DATA_PATH):
+            return {"answer": f"Data file not found at: {DATA_PATH}"}
+
+        df = pd.read_csv(DATA_PATH)
+        print(f"[RAG] CSV loaded successfully. Shape: {df.shape}")
 
         query = item.query.lower()
-        df = pd.read_csv(DATA_PATH)
 
-        # Direct dataset handler
         dataset_answer = handle_dataset_query(query, df)
         if dataset_answer:
             return {"answer": dataset_answer}
 
-        # RAG fallback
         retrieved = retrieve_context(query)
-        if not retrieved or "Dataset not found" in retrieved:
+        if not retrieved or "Dataset not found" in str(retrieved):
             retrieved = df.head(15).to_string(index=False)
 
         final_context = f"""
-You are an ocean data analyst.
-Use the context below to answer accurately.
-
+You are an ocean data analyst AI.
 Context:
 {retrieved}
 
@@ -135,20 +143,16 @@ Question: {item.query}
 """
 
         answer = generate_answer(final_context, item.query)
-
         return {"answer": answer}
 
     except Exception as e:
-        print("=== RAG CHAT ERROR ===")
+        print("=== RAG ERROR ===")
         print("Query:", item.query)
-        print("Error Type:", type(e).__name__)
-        print("Error Message:", str(e))
+        print("Error:", str(e))
         import traceback
         print(traceback.format_exc())
-        
-        return {"answer": f"Error: {str(e)}"}  
-
-
+        return {"answer": f"Backend Error: {str(e)}"}
+    
 # =========================
 # ✅ MARINE PROXY
 # =========================
