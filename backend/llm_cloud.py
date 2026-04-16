@@ -21,31 +21,44 @@ HEADERS = {
 
 def generate_answer(context, query):
 
-    messages = [
-    {
-        "role": "system",
-        "content": (
+    # 🔥 Detect if it's dataset-related
+    dataset_keywords = [
+        "temperature", "salinity", "depth", "pressure",
+        "ph", "oxygen", "nitrate", "chlorophyll",
+        "profiler", "institution", "qc", "platform"
+    ]
+
+    is_dataset_query = any(word in query.lower() for word in dataset_keywords)
+
+    # ✅ Dynamic system prompt
+    if is_dataset_query:
+        system_prompt = (
             "You are an ocean data analyst AI. "
-            "The dataset provided contains ocean water measurements from Argo floats "
-            "(temperature, salinity, depth). "
-            "Always use the given context to answer. "
-            "Do NOT say data is missing. "
-            "Give clear, confident, data-based answers."
+            "Answer strictly using the provided dataset context. "
+            "Give precise, data-based answers."
         )
-    },
-    {
-        "role": "user",
-        "content": f"""
+    else:
+        system_prompt = (
+            "You are a marine expert AI. "
+            "Answer using your general knowledge about oceans and marine life. "
+            "Do not rely only on dataset context."
+        )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": f"""
 Context:
 {context}
 
 Question:
 {query}
 
-Answer using the data above. Be direct and specific.
+Answer clearly and helpfully.
 """
-    }
-]
+        }
+    ]
 
     payload = {
         "model": "llama-3.3-70b-versatile",
@@ -62,7 +75,8 @@ Answer using the data above. Be direct and specific.
 
         else:
             print("Groq Error:", response.status_code, response.text)
-            return f"Error: {response.status_code}"
+            return "Error generating response."
 
     except Exception as e:
-        return f"Internal Error: {str(e)}"
+        print("LLM Exception:", e)
+        return "Error generating response."
