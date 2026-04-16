@@ -1,27 +1,36 @@
 import pandas as pd
 import os
 
-# Robust path for Render
+# Try multiple possible paths - this helps on Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
+possible_paths = [
+    os.path.join(BASE_DIR, "data", "synthetic_indian.csv"),           # Current
+    os.path.join(BASE_DIR, "..", "data", "synthetic_indian.csv"),     # One level up
+    "data/synthetic_indian.csv",                                      # Relative
+    "/opt/render/project/src/backend/data/synthetic_indian.csv"       # Render absolute (fallback)
+]
 
-print(f"[RAG_PIPELINE] Using DATA_PATH: {DATA_PATH}")
-print(f"[RAG_PIPELINE] File exists: {os.path.exists(DATA_PATH)}")
+DATA_PATH = None
+for path in possible_paths:
+    if os.path.exists(path):
+        DATA_PATH = path
+        break
+
+if DATA_PATH is None:
+    DATA_PATH = possible_paths[0]  # fallback
+
+print(f"[RAG] Final DATA_PATH chosen: {DATA_PATH}")
+print(f"[RAG] File exists: {os.path.exists(DATA_PATH)}")
 
 def retrieve_context(query: str):
-    """
-    Retrieves relevant rows from dataset based on keywords.
-    """
     try:
         if not os.path.exists(DATA_PATH):
-            print(f"[RAG_PIPELINE] ERROR: File not found at {DATA_PATH}")
-            return f"Dataset not found at path: {DATA_PATH}"
+            return f"Dataset not found. Path tried: {DATA_PATH}"
 
-        print(f"[RAG_PIPELINE] Loading CSV... Shape will be printed after load")
         df = pd.read_csv(DATA_PATH)
-        print(f"[RAG_PIPELINE] CSV loaded successfully! Shape: {df.shape}")
+        print(f"[RAG] CSV loaded successfully! Shape: {df.shape}")
 
-        # Rename for consistency
+        # Rename columns
         df = df.rename(columns={
             "depth_m": "depth",
             "temperature_c": "temp",
@@ -30,7 +39,7 @@ def retrieve_context(query: str):
 
         query_lower = query.lower()
 
-        if "temperature" in query_lower:
+        if "temperature" in query_lower or "temp" in query_lower:
             relevant = df[["depth", "temp"]].head(20)
         elif "salinity" in query_lower:
             relevant = df[["depth", "salinity"]].head(20)
@@ -39,11 +48,10 @@ def retrieve_context(query: str):
         else:
             relevant = df.head(20)
 
-        print(f"[RAG_PIPELINE] Retrieved {len(relevant)} rows for query: {query}")
         return relevant.to_string(index=False)
 
     except Exception as e:
-        print(f"[RAG_PIPELINE] CRITICAL ERROR in retrieve_context: {str(e)}")
+        print(f"[RAG] ERROR in retrieve_context: {str(e)}")
         import traceback
         print(traceback.format_exc())
-        return f"Error loading dataset: {str(e)}"
+        return f"Error reading dataset: {str(e)}"
