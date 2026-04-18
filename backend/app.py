@@ -6,23 +6,18 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# ====================== FORCE DEBUG AT STARTUP ======================
-print("=" * 60)
-print("BACKEND STARTING ON RENDER...")
+# =========================
+# CONFIGURATION
+# =========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data", "synthetic_indian.csv")
 
-print(f"[DEBUG] __file__     = {__file__}")
-print(f"[DEBUG] BASE_DIR     = {BASE_DIR}")
-print(f"[DEBUG] DATA_PATH    = {DATA_PATH}")
-print(f"[DEBUG] File exists? = {os.path.exists(DATA_PATH)}")
-print(f"[DEBUG] Current working directory = {os.getcwd()}")
-print("=" * 60)
-# ===================================================================
+print(f"Dataset path: {DATA_PATH}")
+print(f"Dataset exists: {os.path.exists(DATA_PATH)}")
 
-class ChatQuery(BaseModel):
-    query: str
-
+# =========================
+# FASTAPI INITIALIZATION
+# =========================
 app = FastAPI()
 
 app.add_middleware(
@@ -33,14 +28,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import after debug prints
+# =========================
+# IMPORT INTERNAL MODULES
+# =========================
 from backend.rag_pipeline import retrieve_context
 from backend.llm_cloud import API_URL, HEADERS, generate_answer
 
+
 # =========================
-# ✅ DATASET HANDLER
+# REQUEST MODEL
+# =========================
+class ChatQuery(BaseModel):
+    query: str
+
+
+# =========================
+# DATASET QUERY HANDLER
 # =========================
 def handle_dataset_query(query, df):
+
     query = query.lower()
 
     column_map = {
@@ -56,18 +62,18 @@ def handle_dataset_query(query, df):
         "nitrate": "nitrate_umolkg",
         "profiler": "profiler",
         "institution": "institution",
-        "qc": "qc_flag",
-        "quality": "qc_flag",
         "platform": "platform_number"
     }
 
-    # 🔍 Match query → column
-    for key, col in column_map.items():
-        if key in query and col in df.columns:
+    for key, column in column_map.items():
 
-            # 📅 DATE QUERY
+        if key in query and column in df.columns:
+
+            # DATE QUERY
             date_match = re.search(r"\d{2}[-/]\d{2}[-/]\d{4}", query)
+
             if date_match:
+
                 date_str = date_match.group()
 
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -76,119 +82,154 @@ def handle_dataset_query(query, df):
                 filtered = df[df["date"] == target_date]
 
                 if not filtered.empty:
-                    return f"On {date_str}, {col} was {filtered[col].iloc[0]}"
-                else:
-                    return f"No data available for {date_str}"
+                    return f"On {date_str}, {column} was {filtered[column].iloc[0]}"
 
-            # 🔢 NUMERIC → average
-            if pd.api.types.is_numeric_dtype(df[col]):
-                return f"Average {col} is {df[col].mean():.2f}"
+                return f"No data available for {date_str}"
 
-            # 📝 CATEGORICAL → values
-            values = df[col].dropna().unique()[:5]
-            return f"{col} values include: {', '.join(map(str, values))}"
+            # NUMERIC COLUMN → MEAN
+            if pd.api.types.is_numeric_dtype(df[column]):
+                return f"Average {column} is {df[column].mean():.2f}"
+
+            # CATEGORICAL COLUMN → SAMPLE VALUES
+            values = df[column].dropna().unique()[:5]
+
+            return f"{column} values include: {', '.join(map(str, values))}"
 
     return None
 
+
 # =========================
-# ✅ ROOT
+# ROOT ENDPOINT
 # =========================
 @app.get("/")
 async def root():
-    return {"status": "online", "message": "FloatChat Backend is running 🚀"}
+
+    return {
+        "status": "online",
+        "message": "FloatChat backend running"
+    }
 
 
 # =========================
-# ✅ DATA SUMMARY (optional)
+# DATA SUMMARY ENDPOINT
 # =========================
 @app.get("/data-summary")
-async def get_data_summary():
+async def data_summary():
+
     try:
+
         df = pd.read_csv(DATA_PATH)
 
-        return df[["depth_m", "temperature_c", "salinity_psu"]].head(100).to_dict(orient="records")
+        return df[
+            ["depth_m", "temperature_c", "salinity_psu"]
+        ].head(100).to_dict(orient="records")
 
     except Exception as e:
+
         return {"error": str(e)}
 
 
 # =========================
-# ✅ MAIN CHAT ENDPOINT
+# MAIN CHAT ENDPOINT
 # =========================
 @app.post("/chat")
 async def chat_endpoint(item: ChatQuery):
+
     try:
-        print(f"[RAG] Received request: {item.query}")
-
-        if not os.path.exists(DATA_PATH):
-            return {"answer": f"Data file not found at: {DATA_PATH}"}
-
-        df = pd.read_csv(DATA_PATH)
-        print(f"[RAG] CSV loaded successfully. Shape: {df.shape}")
 
         query = item.query.lower()
 
+        if not os.path.exists(DATA_PATH):
+            return {"answer": "Dataset not found"}
+
+        df = pd.read_csv(DATA_PATH)
+
+        # STEP 1 — Direct dataset answer
         dataset_answer = handle_dataset_query(query, df)
+
         if dataset_answer:
             return {"answer": dataset_answer}
 
-        retrieved = retrieve_context(query)
-        if not retrieved or "Dataset not found" in str(retrieved):
-            retrieved = df.head(15).to_string(index=False)
+        # STEP 2 — Retrieve context (RAG)
+        try:
+            retrieved = retrieve_context(query)
+        except Exception as e:
+            print("RAG error:", e)
+            retrieved = ""
 
-        final_context = f"""
+        if not retrieved:
+            retrieved = df.head(10).to_string(index=False)
+
+        # STEP 3 — LLM prompt
+        prompt = f"""
 You are an ocean data analyst AI.
-Context:
+
+Dataset context:
 {retrieved}
 
-Question: {item.query}
+User question:
+{item.query}
 """
 
-        answer = generate_answer(final_context, item.query)
+        answer = generate_answer(prompt, query)
+
+        if not answer:
+            return {"answer": "No response generated"}
+
         return {"answer": answer}
 
     except Exception as e:
-        print("=== RAG ERROR ===")
-        print("Query:", item.query)
-        print("Error:", str(e))
-        import traceback
-        print(traceback.format_exc())
-        return {"answer": f"Backend Error: {str(e)}"}
-    
+
+        print("Chat endpoint error:", e)
+
+        return {"answer": f"Backend error: {str(e)}"}
+
+
 # =========================
-# ✅ MARINE PROXY
+# MARINE PROXY (LLM API)
 # =========================
 @app.post("/marine-proxy")
 async def marine_proxy(request: Request):
+
     try:
+
         body = await request.json()
-        
-        # Updated model (llama-3.1-70b-versatile is deprecated)
+
         payload = {
-            "model": "llama-3.3-70b-versatile",     # ← This is the current good model
+            "model": "llama-3.3-70b-versatile",
             "messages": body.get("messages"),
-            "temperature": body.get("temperature", 0.75),
+            "temperature": body.get("temperature", 0.7),
             "max_tokens": body.get("max_tokens", 1000),
         }
 
         response = requests.post(API_URL, headers=HEADERS, json=payload)
 
         if response.status_code == 200:
-            result = response.json()
-            return {"content": result["choices"][0]["message"]["content"]}   # Return in simple format
 
-        else:
-            print("Groq Marine Error:", response.status_code, response.text)
-            return {"error": f"Groq API error: {response.status_code} - {response.text}"}
+            result = response.json()
+
+            return {
+                "content": result["choices"][0]["message"]["content"]
+            }
+
+        return {
+            "error": f"Groq API error: {response.status_code}"
+        }
 
     except Exception as e:
-        print("Marine Proxy Error:", str(e))
-        return {"error": f"Internal server error: {str(e)}"}
+
+        return {"error": str(e)}
 
 
 # =========================
-# ✅ RUN SERVER
+# SERVER ENTRY POINT
 # =========================
 if __name__ == "__main__":
+
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000))
+    )
