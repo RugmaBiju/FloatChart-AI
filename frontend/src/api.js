@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000"
+const API_BASE = " https://floatchart-ai-x0mc.onrender.com"
 
 export async function fetchChatResponse(message) {
   const res = await fetch(`${API_BASE}/chat`, {
