@@ -3,11 +3,12 @@ import os
 
 # Try multiple possible paths - this helps on Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 possible_paths = [
-    os.path.join(BASE_DIR, "data", "synthetic_indian.csv"),           # Current
-    os.path.join(BASE_DIR, "..", "data", "synthetic_indian.csv"),     # One level up
-    "data/synthetic_indian.csv",                                      # Relative
-    "/opt/render/project/src/backend/data/synthetic_indian.csv"       # Render absolute (fallback)
+    os.path.join(BASE_DIR, "data", "synthetic_indian.csv"),
+    os.path.join(BASE_DIR, "..", "data", "synthetic_indian.csv"),
+    "data/synthetic_indian.csv",
+    "/opt/render/project/src/backend/data/synthetic_indian.csv"
 ]
 
 DATA_PATH = None
@@ -17,10 +18,11 @@ for path in possible_paths:
         break
 
 if DATA_PATH is None:
-    DATA_PATH = possible_paths[0]  # fallback
+    DATA_PATH = possible_paths[0]
 
 print(f"[RAG] Final DATA_PATH chosen: {DATA_PATH}")
 print(f"[RAG] File exists: {os.path.exists(DATA_PATH)}")
+
 
 def retrieve_context(query: str):
     try:
