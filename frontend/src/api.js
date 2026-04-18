@@ -1,4 +1,4 @@
-const API_BASE = "https://floatchart-ai-x0mc.onrender.com"
+const API_BASE = "https://floatchart-ai-x0mc.onrender.com/chat"
 
 export async function fetchChatResponse(message) {
   const res = await fetch(`${API_BASE}/chat`, {
