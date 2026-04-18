@@ -658,7 +658,7 @@ function ChatWidget() {
       const { text, source } = await smartRoute(
         userMsg,
         messages.filter((m) => m.role !== "system").slice(-8), // last 8 msgs for context
-        "https://floatchart-ai-x0mc.onrender.com"
+        "https://floatchart-ai-x0mc.onrender.com/chat"
       );
       setMessages((m) => [...m, { role: "bot", text, source }]);
     } catch (err) {
