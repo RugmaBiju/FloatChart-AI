@@ -352,7 +352,7 @@ function CreatureDetail({ creature, onClose }) {
       const { text } = await smartRoute(
         `About the ${creature.name} in the Indian Ocean: ${askInput}`,
         [],
-        "http://localhost:8000/chat"
+        "https://floatchart-ai-x0mc.onrender.com/chat"
       );
       setAskAnswer(text);
     } catch {
@@ -658,7 +658,7 @@ function ChatWidget() {
       const { text, source } = await smartRoute(
         userMsg,
         messages.filter((m) => m.role !== "system").slice(-8), // last 8 msgs for context
-        "http://localhost:8000/chat"
+        "https://floatchart-ai-x0mc.onrender.com"
       );
       setMessages((m) => [...m, { role: "bot", text, source }]);
     } catch (err) {
