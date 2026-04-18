@@ -1,4 +1,4 @@
-const API_BASE = "https://floatchart-ai-x0mc.onrender.com/chat"
+const API_BASE = "https://floatchart-ai-x0mc.onrender.com"
 
 export async function fetchChatResponse(message) {
   const res = await fetch(`${API_BASE}/chat`, {
@@ -8,7 +8,6 @@ export async function fetchChatResponse(message) {
     },
     body: JSON.stringify({ query: message })
   })
-
   return res.json()
 }
 
